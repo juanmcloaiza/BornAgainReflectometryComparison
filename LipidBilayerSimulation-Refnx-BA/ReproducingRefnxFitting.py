@@ -3,14 +3,18 @@ import bornagain as ba
 from bornagain import deg, angstrom
 from matplotlib import pyplot as plt
 from os import path
+from datetime import datetime as dtime
 WAVELENGTH = 1.0 # Dummy for this exercise.
 DATA_TO_FIT="./FitByRefnx.txt"
 
 
 class SampleParameters():
     """
-    Class whose only scope is to return store and return values
-    for the different parameters of the simulation.
+    Class whose only scope is to store and return values for the different
+    parameters of the simulation. The defaults are set to the ones that
+    "best fit" (i.e. found by a human) the curve in the fit produced by Refnx.
+    The Refnx fit curve was generated using a Jupyter notebook downloaded from
+    http://scripts.iucr.org/cgi-bin/paper?rg5158
     """
     _solvent_sld =  6.18989e-06
     _head_f_sld  =  1.88401254e-06
@@ -59,46 +63,39 @@ class SampleParameters():
         self.rough7 = params["rough7"] if "rough7" in params else self._rough7
 
 
-def get_real_data():
+def get_real_data(filename):
     """
-    Loading data from genx_interchanging_layers.dat
-    Returns a Nx2 array (N - the number of experimental data entries)
-    with first column being coordinates,
-    second one being values.
+    - Get a numpy array from the data file.
+    - Translate the coordinate from qvector to incident angle.
+    - Normalize intensity values.
     """
-    if not hasattr(get_real_data, "data"):
-        filename = DATA_TO_FIT
-        real_data = np.loadtxt(filename, usecols=(0, 1))
+    real_data = np.loadtxt(filename, usecols=(0, 1))
+    q = real_data[:, 0]
+    real_data[:, 0] =  np.arcsin(WAVELENGTH * q /(4.0*np.pi))
+    real_data[:, 1] /= real_data[0, 1]
+    return real_data
 
-        # translate from 2 times incident angle (degrees)
-        # to incident angle (radians)
-        q = real_data[:, 0]
-        real_data[:, 0] =  np.arcsin(WAVELENGTH * q /(4.0*np.pi))
-        real_data[:, 1] *= real_data[0, 1]
-        get_real_data.data = real_data
-    return get_real_data.data.copy()
-
-def get_real_data_axis():
+def get_real_data_axis(filename):
     """
     Get axis coordinates of the experimental data
     :return: 1D array with axis coordinates
     """
-    return get_real_data()[:, 0]
+    return get_real_data(filename)[:, 0]
 
-def get_real_data_values():
+def get_real_data_values(filename):
     """
     Get experimental data values as a 1D array
     :return: 1D array with experimental data values
     """
-    return get_real_data()[:, 1]
+    return get_real_data(filename)[:, 1]
 
 def get_sample(params):
     """
-    Defines sample and returns it
+    Define the multilayer sample, using the parameters given.
+    :return:  Multilayer
     """
 
     xpar = SampleParameters(params)
-    print(xpar.solvent_sld)
 
     #materials by SLD
     m_solvent = ba.MaterialBySLD("solvent", xpar.solvent_sld, 0.0)
@@ -140,22 +137,32 @@ def get_sample(params):
 
 def get_simulation(params):
     """
-    Create and return specular simulation with its instrument defined
+    - Defines the instrument and the beam.
+    - Define the sample.
+    - :return:  SpecularSimulation
     """
     wavelength = WAVELENGTH * ba.angstrom
-    sampling_var = get_real_data_axis()
+    sampling_var = get_real_data_axis(DATA_TO_FIT)
 
     simulation = ba.SpecularSimulation()
     simulation.setBeamParameters(wavelength, sampling_var)
     simulation.setSample(get_sample(params))
     return simulation
 
-def my_plot(fit_objective, title):
+def comparison_plot(fit_objective, title):
+    """
+    Given a fit (through the fit_objective), save a plot
+    to visually compare it with the original data.
+    The plot will be saved in the directory containing this
+    script.
+    """
     plt.figure()
     fit_result = fit_objective.simulationResult()
     data = fit_result.data()
     xbins = np.array(data.getAxis(0).getBinCenters())
 
+    # We don't use get_real_data, as we want to compare
+    # the results to the original data, which is in q space.
     qdata = np.loadtxt(DATA_TO_FIT)[:,0]
     idata = np.loadtxt(DATA_TO_FIT)[:,1]
 
@@ -170,27 +177,73 @@ def my_plot(fit_objective, title):
     plt.xlim([0,0.6])
     plt.title(title)
 
-    plt.savefig(title+".png")
+    save_file=title+"_"+str(dtime.now().date())+"_"+str(dtime.now().time())+".png"
+    plt.savefig(save_file)
 
-tunable_parameters = {"solvent_sld":6.0e-6}
-real_data = get_real_data_values()
-fit_objective = ba.FitObjective()
-fit_objective.addSimulationAndData(get_simulation, real_data, 1.0)
-minimizer = ba.Minimizer()
-params = ba.Parameters()
 
-for k,v in tunable_parameters.items():
-    params.add(k, v, min=0.1*v, max=10*v)
+def print_finish_message():
+    print("   ,(   ,(   ,(   ,(   ,(   ,(   ,(   ,(")
+    print("`-'  `-'  `-'  `-'  `-'  `-'  `-'  `-'  `")
+    print("   ,(   ,(   ,(   ,(   ,(   ,(   ,(   ,(")
+    print("`-'  `-'  `   Finished   `-'  `-'  `-'  `")
+    print("   ,(   ,(   ,(   ,(   ,(   ,(   ,(   ,(")
+    print("`-'  `-'  `-'  `-'  `-'  `-'  `-'  `-'  `")
+    print("   ,(   ,(   ,(   ,(   ,(   ,(   ,(   ,(")
 
-plot_observer = ba.PlotterSpecular()
-fit_objective.initPrint(10)
-fit_objective.initPlot(10, plot_observer)
 
-result = minimizer.minimize(fit_objective.evaluate, params)
-fit_objective.finalize(result)
 
-plot_title = ""
-for k,v in tunable_parameters.items():
-    plot_title += k + "(before fitting)=" + "{:.2f}".format(1e6*v)
-my_plot(fit_objective, plot_title)
-print("Finished")
+if __name__ == '__main__':
+    # Uncomment the parameters you wish to fit
+    # The values reported here produce the "best fit" (fit by human sight).
+    # SLD values refer to the "effective" SLD of the layer, neglecting
+    # any kind of solvation.
+    # Implementing solvation treatment is work in progress.
+    tunable_parameters = {
+    #   "solvent_sld": 6.18989e-06,
+    #   "head_f_sld":  1.88401254e-06,
+    #   "head_a_sld":  3.60e-06,
+    #   "tail_f_sld": -0.25e-06,
+    #   "tail_a_sld": -0.37340153e-06,
+    #   "sio2_sld":    3.47e-06,
+       "silicon_sld": 2.07e-06,
+
+    #   "head_f_thickness":  5.64468,
+    #   "head_a_thickness":  9.86971,
+    #   "tail_f_thickness": 13.7233,
+    #   "tail_a_thickness": 13.7233,
+    #   "sio2_thickness  ": 12.0885,
+
+    #   "rough1": 4.80879,
+    #   "rough2": 3.00,
+    #   "rough3": 3.00,
+    #   "rough4": 1.00e-7,
+    #   "rough5": 3.00,
+    #   "rough6": 1.64969,
+    #   "rough7": 1.00e-7,
+    }
+    params = ba.Parameters()
+    for k,v in tunable_parameters.items():
+        params.add(k, v, min=0.1*v, max=10*v)
+
+    # Obtain the dataset to fit as a numpy array.
+    real_data = get_real_data_values(DATA_TO_FIT)
+
+    # Link the real data with a simulation.
+    fit_objective = ba.FitObjective()
+    fit_objective.addSimulationAndData(get_simulation, real_data, 1.0)
+    fit_objective.initPrint(10)
+
+    # Do the fitting.
+    # To play around with the minimizers available, visit:
+    # https://www.bornagainproject.org/documentation/working-with-python/fitting/fitting-highlights/minimizers/
+    minimizer = ba.Minimizer()
+    minimizer.setMinimizer("GSLMultiMin","BFGS2")
+    result = minimizer.minimize(fit_objective.evaluate, params)
+    fit_objective.finalize(result)
+
+    # Plot a comparison of the fit results and the actual data:
+    plot_title = "FitPlot"
+    comparison_plot(fit_objective, plot_title)
+
+    # Let the user know that the program finished:
+    print_finish_message()
