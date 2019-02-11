@@ -2,7 +2,6 @@ import numpy as np
 import bornagain as ba
 from bornagain import deg, angstrom
 from matplotlib import pyplot as plt
-from os import path
 from datetime import datetime as dtime
 WAVELENGTH = 1.0 # Dummy for this exercise.
 DATA_TO_FIT="./FitByRefnx.txt"
@@ -16,10 +15,12 @@ class SampleParameters():
     The Refnx fit curve was generated using a Jupyter notebook downloaded from
     http://scripts.iucr.org/cgi-bin/paper?rg5158
     """
+
+    # _a_ is "inner" in refnx; _f_ is "outer".
     _solvent_sld =  6.18989e-06
     _head_f_sld  =  1.88401254e-06
-    _head_a_sld  =  3.60e-06
-    _tail_f_sld  = -0.25e-06
+    _tail_f_sld  = -0.37340153e-06
+    _head_a_sld  =  1.88401254e-06
     _tail_a_sld  = -0.37340153e-06
     _sio2_sld    =  3.47e-06
     _silicon_sld =  2.07e-06
@@ -29,6 +30,22 @@ class SampleParameters():
     _tail_f_thickness = 13.7233
     _tail_a_thickness = 13.7233
     _sio2_thickness   = 12.0885
+
+    # Solvent volume fractions.
+    _head_f_sfv = 0.9915395153082305
+    _tail_f_sfv = 0.9997855735077633
+    _head_a_sfv = 0.5670808231721158
+    _tail_a_sfv = 0.9997855735077633
+    _sio2_sfv = 1.0 - 0.127675
+
+    # These are obtained from "theory" according to refnx paper;
+    # They Correspond to the slds AFTER solvation.
+    # Reported here only as an aside note, they are calculated later.
+    # head_f_overall_sld =  1.920442349526814e-06
+    # tail_f_overall_sld = -0.3719941909455789e-06
+    # head_a_overall_sld =  3.7481094650427435e-06
+    # tail_a_overall_sld = -0.3719941909455789e-06
+    # sio2_overall_sld   =  3.81726195575e-06
 
     _rough1 = 4.80879
     _rough2 = 3.00
@@ -62,6 +79,12 @@ class SampleParameters():
         self.rough6 = params["rough6"] if "rough6" in params else self._rough6
         self.rough7 = params["rough7"] if "rough7" in params else self._rough7
 
+        self.head_f_sfv  = params["head_f_sfv"]  if "head_f_sfv"  in params else self._head_f_sfv
+        self.tail_f_sfv  = params["tail_f_sfv"]  if "tail_f_sfv"  in params else self._tail_f_sfv
+        self.tail_a_sfv  = params["tail_a_sfv"]  if "tail_a_sfv"  in params else self._tail_a_sfv
+        self.head_a_sfv  = params["head_a_sfv"]  if "head_a_sfv"  in params else self._head_a_sfv
+        self.sio2_sfv    = params["sio2_sfv"]    if "sio2_sfv"    in params else self._sio2_sfv
+
 
 def get_real_data(filename):
     """
@@ -75,6 +98,7 @@ def get_real_data(filename):
     real_data[:, 1] /= real_data[0, 1]
     return real_data
 
+
 def get_real_data_axis(filename):
     """
     Get axis coordinates of the experimental data
@@ -82,12 +106,35 @@ def get_real_data_axis(filename):
     """
     return get_real_data(filename)[:, 0]
 
+
 def get_real_data_values(filename):
     """
     Get experimental data values as a 1D array
     :return: 1D array with experimental data values
     """
     return get_real_data(filename)[:, 1]
+
+
+def sld_with_solvent(original_sld, solvent_sld, solvent_fraction):
+    """
+    :param original_sld: sld of the original material
+    :param solvent_sld: sld of the solvent material
+    :param solvent_fraction: fraction volume of solvent
+    :return: overall sld of solvent + original material
+    """
+    if solvent_fraction < 0 or solvent_fraction > 1:
+        print("original sld: {}".format(original_sld))
+        print("solvent sld: {}".format(solvent_sld))
+        print("solvent_fraction: {}".format(solvent_fraction))
+        raise ValueError("Non physical solvent fraction found : {}"
+                .format(solvent_fraction))
+
+    osld = original_sld
+    ssld = solvent_sld
+    sf = solvent_fraction
+    rsld = osld * sf + (1.0 - sf) * ssld
+    return rsld
+
 
 def get_sample(params):
     """
@@ -97,13 +144,13 @@ def get_sample(params):
 
     xpar = SampleParameters(params)
 
-    #materials by SLD
+    # materials by SLD
     m_solvent = ba.MaterialBySLD("solvent", xpar.solvent_sld, 0.0)
-    m_head_f  = ba.MaterialBySLD("head_f",  xpar.head_f_sld,  0.0)
-    m_tail_f  = ba.MaterialBySLD("tail_f",  xpar.tail_f_sld,  0.0)
-    m_tail_a  = ba.MaterialBySLD("tail_a",  xpar.tail_a_sld,  0.0)
-    m_head_a  = ba.MaterialBySLD("head_f",  xpar.head_a_sld,  0.0)
-    m_sio2    = ba.MaterialBySLD("sio2",    xpar.sio2_sld,    0.0)
+    m_head_f  = ba.MaterialBySLD("head_f",  sld_with_solvent(xpar.head_f_sld, xpar.solvent_sld, xpar.head_f_sfv),  0.0)
+    m_tail_f  = ba.MaterialBySLD("tail_f",  sld_with_solvent(xpar.tail_f_sld, xpar.solvent_sld, xpar.tail_f_sfv),  0.0)
+    m_tail_a  = ba.MaterialBySLD("tail_a",  sld_with_solvent(xpar.tail_a_sld, xpar.solvent_sld, xpar.tail_a_sfv),  0.0)
+    m_head_a  = ba.MaterialBySLD("head_a",  sld_with_solvent(xpar.head_a_sld, xpar.solvent_sld, xpar.head_a_sfv),  0.0)
+    m_sio2    = ba.MaterialBySLD("sio2",    sld_with_solvent(xpar.sio2_sld, xpar.solvent_sld, xpar.sio2_sfv),  0.0)
     m_silicon = ba.MaterialBySLD("silicon", xpar.silicon_sld, 0.0)
 
     # Layers with some thickness
@@ -199,13 +246,13 @@ if __name__ == '__main__':
     # any kind of solvation.
     # Implementing solvation treatment is work in progress.
     tunable_parameters = {
-    #   "solvent_sld": 6.18989e-06,
+        "solvent_sld": 6.18989e-06,
     #   "head_f_sld":  1.88401254e-06,
     #   "head_a_sld":  3.60e-06,
     #   "tail_f_sld": -0.25e-06,
     #   "tail_a_sld": -0.37340153e-06,
     #   "sio2_sld":    3.47e-06,
-       "silicon_sld": 2.07e-06,
+    #   "silicon_sld": 2.07e-06,
 
     #   "head_f_thickness":  5.64468,
     #   "head_a_thickness":  9.86971,
@@ -220,6 +267,12 @@ if __name__ == '__main__':
     #   "rough5": 3.00,
     #   "rough6": 1.64969,
     #   "rough7": 1.00e-7,
+
+    #   "head_f_sfv": 0.9915395153082305,
+    #   "tail_f_sfv": 0.9997855735077633,
+    #   "head_a_sfv": 0.5670808231721158,
+    #   "tail_a_sfv": 0.9997855735077633,
+    #   "sio2_sfv": 1.0 - 0.127675,
     }
     params = ba.Parameters()
     for k,v in tunable_parameters.items():
