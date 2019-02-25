@@ -4,8 +4,26 @@ from bornagain import deg, angstrom
 from matplotlib import pyplot as plt
 from datetime import datetime as dtime
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+WAVELENGTH = 1.0
 
+class CustomFitObjective(ba.FitObjective):
+    def __init__(self):
+        ba.FitObjective.__init__(self)
 
+    # Redefine this function:
+    def evaluate(self, params):
+
+        # Evaluate residuals needs to be called always:
+        bla = self.evaluate_residuals(params)
+
+        l_sim = np.asarray(self.simulation_array())
+        l_exp = np.asarray(self.experimental_array())
+        #print("l_sim = ",l_sim)
+        #print("l_exp = ",l_exp)
+
+        sim_exp_diff  = 2. * np.abs(l_exp - l_sim) / np.abs( l_sim + l_exp )
+
+        return sim_exp_diff.mean()
 
 class SampleParameters():
     """
@@ -158,7 +176,7 @@ def MyLipidBilayer(top_head_material, top_head_thickness, top_head_sfv, rough_to
 
     return top_leaflet + bottom_leaflet
 #
-# Utiliti functions
+# Utility functions
 #
 
 def get_real_data(filename):
@@ -293,12 +311,27 @@ def comparison_plot(datafile,
     if J == 0:
         axs[I,J].set_ylabel('Reflectivity')
 
-    if I == 1:
+    if I == ncols-1:
         axs[I,J].set_xlabel('Q /$\AA^{-1}$')
     #axs[I,J].legend()
     current_plot = (I,J)
 
     return (fig, axs, inset)
+
+def get_simulation(filename, params):
+    """
+    Create and return specular simulation with its instrument defined
+    """
+    wavelength = WAVELENGTH * ba.angstrom
+    qvec = get_real_data_axis(filename)
+
+    theta = np.arcsin( WAVELENGTH * qvec /(4.0*np.pi) )
+
+    simulation = ba.SpecularSimulation()
+    simulation.setBeamParameters(wavelength, theta)
+    xpar = SampleParameters(params)
+    simulation.setSample(get_lipid_bilayer_sample(xpar))
+    return simulation
 
 def plot_comparison_filenames(DataFile, OtherCodeSimFile, BornAgainSimFile, to_title):
     rfig, raxs, rinset = None, None, None
