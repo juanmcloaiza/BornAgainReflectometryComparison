@@ -10,20 +10,20 @@ class CustomFitObjective(ba.FitObjective):
     def __init__(self):
         ba.FitObjective.__init__(self)
 
-    # Redefine this function:
     def evaluate(self, params):
 
         # Evaluate residuals needs to be called always:
         bla = self.evaluate_residuals(params)
 
-        l_sim = np.asarray(self.simulation_array())
-        l_exp = np.asarray(self.experimental_array())
-        #print("l_sim = ",l_sim)
-        #print("l_exp = ",l_exp)
+        sim = (np.asarray(self.simulation_array()))
+        exp = (np.asarray(self.experimental_array()))
 
-        sim_exp_diff  = 2. * np.abs(l_exp - l_sim) / np.abs( l_sim + l_exp )
+        l_sim = -np.log(sim)
+        l_exp = -np.log(exp)
+        eps = (np.sum(np.abs(l_exp))/l_exp.size) * 1e-14
+        l_sim_exp_diff = ((l_sim - l_exp)/(eps + l_sim + l_exp))**2
 
-        return sim_exp_diff.mean()
+        return l_sim_exp_diff.sum()
 
 class SampleParameters():
     """
