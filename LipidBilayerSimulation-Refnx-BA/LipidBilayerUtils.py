@@ -17,13 +17,10 @@ class CustomFitObjective(ba.FitObjective):
 
         sim = (np.asarray(self.simulation_array()))
         exp = (np.asarray(self.experimental_array()))
+        eps = (np.sum(np.abs(exp))/exp.size) * 1e-14
+        sim_exp_diff = ((sim - exp)/(eps + sim + exp))**2
 
-        l_sim = -np.log(sim)
-        l_exp = -np.log(exp)
-        eps = (np.sum(np.abs(l_exp))/l_exp.size) * 1e-14
-        l_sim_exp_diff = ((l_sim - l_exp)/(eps + l_sim + l_exp))**2
-
-        return l_sim_exp_diff.sum()
+        return sim_exp_diff.sum()
 
 class SampleParameters():
     """
