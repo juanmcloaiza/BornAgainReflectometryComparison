@@ -10,20 +10,17 @@ class CustomFitObjective(ba.FitObjective):
     def __init__(self):
         ba.FitObjective.__init__(self)
 
-    # Redefine this function:
     def evaluate(self, params):
 
         # Evaluate residuals needs to be called always:
         bla = self.evaluate_residuals(params)
 
-        l_sim = np.asarray(self.simulation_array())
-        l_exp = np.asarray(self.experimental_array())
-        #print("l_sim = ",l_sim)
-        #print("l_exp = ",l_exp)
+        sim = (np.asarray(self.simulation_array()))
+        exp = (np.asarray(self.experimental_array()))
+        eps = (np.sum(np.abs(exp))/exp.size) * 1e-14
+        sim_exp_diff = ((sim - exp)/(eps + sim + exp))**2
 
-        sim_exp_diff  = 2. * np.abs(l_exp - l_sim) / np.abs( l_sim + l_exp )
-
-        return sim_exp_diff.mean()
+        return sim_exp_diff.sum()
 
 class SampleParameters():
     """
@@ -81,7 +78,6 @@ class SampleParameters():
     def __init__(self,params={}):
         assert isinstance(params, dict), "SampleParameters class must be initialized by an instance of dict"
 
-
         self.solvent_sld = params["solvent_sld"] if "solvent_sld" in params else self._si_sld
         self.d2o_sld = params["d2o_sld"] if "d2o_sld" in params else self._d2o_sld
         self.h2o_sld = params["h2o_sld"] if "h2o_sld" in params else self._h2o_sld
@@ -110,10 +106,12 @@ class SampleParameters():
         self.head_a_sfv  = params["head_a_sfv"]  if "head_a_sfv"  in params else self._head_a_sfv
         self.sio2_sfv    = params["sio2_sfv"]    if "sio2_sfv"    in params else self._sio2_sfv
 
-
         self.d2o_bkg    = params["d2o_bkg"]    if "d2o_bkg"    in params else self._d2o_bkg
         self.h2o_bkg    = params["h2o_bkg"]    if "h2o_bkg"    in params else self._h2o_bkg
         self.hdmix_bkg    = params["hdmix_bkg"]    if "hdmix_bkg"    in params else self._hdmix_bkg
+
+    def __getitem__(self, key):
+        return eval("self."+key)
 
 
 def overall_sld(original_sld,solvent_sld,solvent_fraction):
@@ -184,8 +182,8 @@ def get_real_data(filename):
     - Get a numpy array from the data file.
     - Normalize intensity values.
     """
-    real_data = np.loadtxt(filename, usecols=(0, 1))
-    real_data[:, 1] /= real_data[0, 1]
+    real_data = np.loadtxt(filename, usecols=(0, 1, 2))
+    #real_data[:, 1] /= real_data[0, 1]
     return real_data
 
 
