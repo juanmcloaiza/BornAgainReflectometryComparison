@@ -10,4 +10,4 @@
  - Bornagain performance tests:
    - PerformanceTests/BornAgain_Performance_Analysis.ipynb
  - Reusing already performing code:
-   - PerformanceTests/Extracting_Refnx_Engine.ipynb
+   - PerformanceTests/Reusing_an_already_performing_engine.ipynb
