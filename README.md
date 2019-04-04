@@ -1,7 +1,13 @@
 # BornAgainReflectometryComparison
- - Comparison between BornAgain and other available reflectoetry software:
+ - Comparison between BornAgain and other available reflectometry software:
    - SimulationOverview-BA-GenX-Refnx-Refl1d/BornAgainSoftwareIntercomparison-Simulation.ipynb
  - Different roughness models give large discrepancies between BornAgain and Refnx:  
    - LipidBilayerSimulation-Refnx-BA/Roughness_gives_discrepancy.ipynb
  - Usage example of the Lipid Bilayer Model (prototype implementation):  
    - LipidBilayerSimulation-Refnx-BA/Towards_the_Lipid_Bilayer_Model.ipynb
+ - Co-refinement proof-of-concept wrappers:
+   - LipidBilayerSimulation-Refnx-BA/Co-refinement_in_BornAgain.ipynb
+ - Bornagain performance tests:
+   - PerformanceTests/BornAgain_Performance_Analysis.ipynb
+ - Reusing already performing code:
+   - PerformanceTests/Extracting_Refnx_Engine.ipynb
