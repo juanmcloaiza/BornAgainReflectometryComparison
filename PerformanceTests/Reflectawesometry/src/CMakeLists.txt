@@ -1,0 +1,2 @@
+add_executable(ReflectawesometryDemo main.cpp)
+target_link_libraries (ReflectawesometryDemo LINK_PUBLIC Reflectawesometry)
