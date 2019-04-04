@@ -9,5 +9,5 @@
    - LipidBilayerSimulation-Refnx-BA/Co-refinement_in_BornAgain.ipynb
  - Bornagain performance tests:
    - PerformanceTests/BornAgain_Performance_Analysis.ipynb
- - Reusing already performing code:
+ - Reusing an already performing piece of code:
    - PerformanceTests/Reusing_an_already_performing_engine.ipynb
